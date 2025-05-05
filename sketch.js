@@ -4,6 +4,9 @@
 let video;
 let handPose;
 let hands = [];
+let circleX, circleY, circleSize = 100;
+let isDrawing = false; // 用於判斷是否繪製軌跡
+let prevX, prevY; // 儲存上一個位置
 
 function preload() {
   // Initialize HandPose model with flipped video input
@@ -25,16 +28,29 @@ function setup() {
 
   // Start detecting hands
   handPose.detectStart(video, gotHands);
+
+  // Initialize circle position
+  circleX = width / 2;
+  circleY = height / 2;
+
+  // Set background once to avoid clearing it in draw()
+  background(255);
 }
 
 function draw() {
+  // Draw the video feed
   image(video, 0, 0);
+
+  // Draw the circle
+  fill(0, 255, 0);
+  noStroke();
+  circle(circleX, circleY, circleSize);
 
   // Ensure at least one hand is detected
   if (hands.length > 0) {
     for (let hand of hands) {
       if (hand.confidence > 0.1) {
-        // Draw keypoints and connect 0 to 4
+        // Draw keypoints
         for (let i = 0; i < hand.keypoints.length; i++) {
           let keypoint = hand.keypoints[i];
 
@@ -49,39 +65,30 @@ function draw() {
           circle(keypoint.x, keypoint.y, 16);
         }
 
-        // Connect keypoints 0 to 4 with lines
-        stroke(0); // Set line color
-        strokeWeight(2); // Set line thickness
-        for (let i = 0; i < 4; i++) {
-          let start = hand.keypoints[i];
-          let end = hand.keypoints[i + 1];
-          line(start.x, start.y, end.x, end.y);
-        }
+        // Check if keypoint[8] (index finger tip) is touching the circle
+        let indexFinger = hand.keypoints[8];
+        let d = dist(indexFinger.x, indexFinger.y, circleX, circleY);
+        if (d < circleSize / 2) {
+          // Move the circle to the index finger's position
+          circleX = indexFinger.x;
+          circleY = indexFinger.y;
 
-        // Connect keypoints 5 to 8 with lines
-        for (let i = 5; i < 8; i++) {
-          let start = hand.keypoints[i];
-          let end = hand.keypoints[i + 1];
-          line(start.x, start.y, end.x, end.y);
-        }
-
-        // Connect keypoints 9 to 12 with lines
-        for (let i = 9; i < 12; i++) {
-          let start = hand.keypoints[i];
-          let end = hand.keypoints[i + 1];
-          line(start.x, start.y, end.x, end.y);
-        }
-
-        // Connect keypoints 13 to 16 with lines
-        for (let i = 13; i < 16; i++) {
-          let start = hand.keypoints[i];
-          let end = hand.keypoints[i + 1];
-          line(start.x, start.y, end.x, end.y);
-        }
-        for (let i = 17; i < 20; i++) {
-          let start = hand.keypoints[i];
-          let end = hand.keypoints[i + 1];
-          line(start.x, start.y, end.x, end.y);
+          // Start drawing the trajectory
+          if (!isDrawing) {
+            isDrawing = true;
+            prevX = indexFinger.x;
+            prevY = indexFinger.y;
+          } else {
+            // Draw the trajectory line
+            stroke(255, 0, 0); // Red color for the trajectory
+            strokeWeight(2);
+            line(prevX, prevY, indexFinger.x, indexFinger.y);
+            prevX = indexFinger.x;
+            prevY = indexFinger.y;
+          }
+        } else {
+          // Stop drawing when the finger leaves the circle
+          isDrawing = false;
         }
       }
     }
